@@ -1,0 +1,1856 @@
+-- KNY_HUB v4.1 - Carga 15s + Key Gate Sin Pistas (KNY_HUB_2026) + Menú Completo
+-- Optimizado para Samsung / Android / Tablet / PC
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+
+-- ==========================================
+-- CONFIGURACIÓN DE KEY (SIN PISTAS)
+-- ==========================================
+local KeyConfig = {
+    Version = "v4.1",
+    KeyInfoText = "Ingresa tu clave de acceso autorizada para desbloquear KNY_HUB.",
+    KeyLinkText = "https://kny-hub.ejemplo/get-key",
+    SaveFileName = "KNY_HUB_Auth_v41.txt",
+    ValidKeys = {
+        ["KNY_HUB_2026"] = "Acceso Autorizado"
+    }
+}
+
+-- Resolver contenedor GUI de forma segura en cualquier ejecutor
+local function GetSafeGuiParent()
+    local target = nil
+    pcall(function()
+        if typeof(gethui) == "function" then
+            target = gethui()
+        end
+    end)
+    if target then return target end
+
+    pcall(function()
+        local cg = game:GetService("CoreGui")
+        local testFrame = Instance.new("Frame")
+        testFrame.Parent = cg
+        testFrame:Destroy()
+        target = cg
+    end)
+    if target then return target end
+
+    local pg = LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 10)
+    return pg
+end
+
+local GuiParent = GetSafeGuiParent()
+if not GuiParent then
+    warn("[KNY_HUB] No se encontró un contenedor válido para la interfaz.")
+    return
+end
+
+-- Limpiar ejecución previa si existe
+pcall(function()
+    local old = GuiParent:FindFirstChild("KNY_HUB_System")
+    if old then old:Destroy() end
+end)
+
+-- Obtener nombre del juego de forma segura
+local GameName = "Experiencia Roblox"
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    if info and info.Name and info.Name ~= "" then
+        GameName = info.Name
+    end
+end)
+
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local DeviceLabel = IsMobile and "Móvil / Táctil" or "PC / Híbrido"
+
+-- ==========================================
+-- PALETA DE COLORES
+-- ==========================================
+local C = {
+    SplashBg = Color3.fromRGB(8, 10, 16),
+    Bg = Color3.fromRGB(13, 16, 24),
+    Surface = Color3.fromRGB(19, 23, 35),
+    Top = Color3.fromRGB(22, 27, 41),
+    Card = Color3.fromRGB(26, 31, 47),
+    CardDark = Color3.fromRGB(17, 20, 31),
+    Blue = Color3.fromRGB(45, 130, 255),
+    Crimson = Color3.fromRGB(225, 48, 82),
+    Purple = Color3.fromRGB(135, 90, 255),
+    Text = Color3.fromRGB(246, 248, 252),
+    Muted = Color3.fromRGB(160, 169, 190),
+    Border = Color3.fromRGB(52, 61, 84),
+    Green = Color3.fromRGB(68, 218, 132),
+    Gold = Color3.fromRGB(255, 198, 66)
+}
+
+-- ==========================================
+-- SCREENGUI PRINCIPAL
+-- ==========================================
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "KNY_HUB_System"
+Gui.ResetOnSpawn = false
+Gui.IgnoreGuiInset = true
+Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.Parent = GuiParent
+
+-- ==========================================
+-- UTILIDADES VISUALES Y SONIDO
+-- ==========================================
+local function PlaySfx(id, vol, speed)
+    task.spawn(function()
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = "rbxassetid://" .. tostring(id)
+            s.Volume = vol or 0.4
+            s.PlaybackSpeed = speed or 1
+            s.Parent = SoundService
+            s:Play()
+            s.Ended:Connect(function()
+                pcall(function() s:Destroy() end)
+            end)
+            task.delay(3.5, function()
+                pcall(function() if s and s.Parent then s:Destroy() end end)
+            end)
+        end)
+    end)
+end
+
+local SFX = {
+    Click = 6895079853,
+    Notify = 4590657391,
+    Success = 6026984224,
+    Error = 9066167010
+}
+
+local function Decorate(obj, radius, strokeColor, strokeThickness)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = obj
+
+    if strokeColor then
+        local st = Instance.new("UIStroke")
+        st.Color = strokeColor
+        st.Thickness = strokeThickness or 1
+        st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        st.Parent = obj
+    end
+end
+
+local function MakeDraggable(handle, target)
+    local dragging = false
+    local dragStart = Vector2.zero
+    local startPos = target.Position
+    local activeInput = nil
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            activeInput = input
+            dragStart = input.Position
+            startPos = target.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    if activeInput == input then
+                        dragging = false
+                        activeInput = nil
+                    end
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input == activeInput then
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                local delta = input.Position - dragStart
+                target.Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + delta.X,
+                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- 1. SISTEMA DE NOTIFICACIONES
+-- ==========================================
+local NotifHolder = Instance.new("Frame")
+NotifHolder.Name = "NotifHolder"
+NotifHolder.Size = UDim2.new(0, 290, 1, -30)
+NotifHolder.Position = UDim2.new(1, -304, 0, 15)
+NotifHolder.BackgroundTransparency = 1
+NotifHolder.ZIndex = 80
+NotifHolder.Parent = Gui
+
+local NotifList = Instance.new("UIListLayout")
+NotifList.SortOrder = Enum.SortOrder.LayoutOrder
+NotifList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+NotifList.Padding = UDim.new(0, 8)
+NotifList.Parent = NotifHolder
+
+local notifCounter = 0
+local function Notify(title, msg, secs, accent, tag)
+    secs = secs or 4
+    notifCounter += 1
+    local col = accent or C.Blue
+    local badgeTxt = string.upper(tag or "KNY")
+
+    PlaySfx(SFX.Notify, 0.35, 1.06)
+
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 0, 0)
+    card.BackgroundColor3 = C.Card
+    card.BackgroundTransparency = 0.04
+    card.LayoutOrder = notifCounter
+    card.ClipsDescendants = true
+    card.ZIndex = 81
+    card.Parent = NotifHolder
+    Decorate(card, 10, C.Border, 1)
+
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 37, 56)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(19, 23, 35))
+    })
+    grad.Rotation = 90
+    grad.Parent = card
+
+    local stripe = Instance.new("Frame")
+    stripe.Size = UDim2.new(0, 5, 1, 0)
+    stripe.BackgroundColor3 = col
+    stripe.BorderSizePixel = 0
+    stripe.ZIndex = 82
+    stripe.Parent = card
+
+    local tagLbl = Instance.new("TextLabel")
+    tagLbl.Size = UDim2.new(0, 56, 0, 18)
+    tagLbl.Position = UDim2.new(1, -66, 0, 8)
+    tagLbl.BackgroundColor3 = C.CardDark
+    tagLbl.Font = Enum.Font.GothamBlack
+    tagLbl.Text = badgeTxt
+    tagLbl.TextColor3 = col
+    tagLbl.TextSize = 9
+    tagLbl.ZIndex = 82
+    tagLbl.Parent = card
+    Decorate(tagLbl, 5, col, 1)
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -86, 0, 22)
+    titleLbl.Position = UDim2.new(0, 14, 0, 6)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.Text = title
+    titleLbl.TextColor3 = C.Text
+    titleLbl.TextSize = 13
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    titleLbl.ZIndex = 82
+    titleLbl.Parent = card
+
+    local msgLbl = Instance.new("TextLabel")
+    msgLbl.Size = UDim2.new(1, -24, 0, 38)
+    msgLbl.Position = UDim2.new(0, 14, 0, 29)
+    msgLbl.BackgroundTransparency = 1
+    msgLbl.Font = Enum.Font.Gotham
+    msgLbl.Text = msg
+    msgLbl.TextColor3 = C.Muted
+    msgLbl.TextSize = 11
+    msgLbl.TextWrapped = true
+    msgLbl.TextXAlignment = Enum.TextXAlignment.Left
+    msgLbl.TextYAlignment = Enum.TextYAlignment.Top
+    msgLbl.ZIndex = 82
+    msgLbl.Parent = card
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(1, 0, 0, 3)
+    bar.Position = UDim2.new(0, 0, 1, -3)
+    bar.BackgroundColor3 = col
+    bar.BorderSizePixel = 0
+    bar.ZIndex = 82
+    bar.Parent = card
+
+    TweenService:Create(card, TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+        Size = UDim2.new(1, 0, 0, 78)
+    }):Play()
+
+    TweenService:Create(bar, TweenInfo.new(secs, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 3)
+    }):Play()
+
+    task.delay(secs, function()
+        if card and card.Parent then
+            local outTween = TweenService:Create(card, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(1, 0, 0, 0),
+                BackgroundTransparency = 1
+            })
+            outTween:Play()
+            outTween.Completed:Wait()
+            if card and card.Parent then
+                card:Destroy()
+            end
+        end
+    end)
+end
+
+-- ==========================================
+-- 2. PANTALLA DE CARGA COMPLETA (15 SEGUNDOS)
+-- ==========================================
+local Splash = Instance.new("Frame")
+Splash.Name = "Splash"
+Splash.Size = UDim2.fromScale(1, 1)
+Splash.Position = UDim2.fromScale(0, 0)
+Splash.BackgroundColor3 = C.SplashBg
+Splash.BorderSizePixel = 0
+Splash.ZIndex = 60
+Splash.Parent = Gui
+
+local SplashGrad = Instance.new("UIGradient")
+SplashGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 27, 58)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(8, 10, 16)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 12, 24))
+})
+SplashGrad.Rotation = 35
+SplashGrad.Parent = Splash
+
+local LineTop = Instance.new("Frame")
+LineTop.Size = UDim2.new(0.55, 0, 0, 2)
+LineTop.Position = UDim2.new(0.225, 0, 0.20, 0)
+LineTop.BackgroundColor3 = C.Blue
+LineTop.BorderSizePixel = 0
+LineTop.ZIndex = 61
+LineTop.Parent = Splash
+
+local LineBot = Instance.new("Frame")
+LineBot.Size = UDim2.new(0.55, 0, 0, 2)
+LineBot.Position = UDim2.new(0.225, 0, 0.80, 0)
+LineBot.BackgroundColor3 = C.Crimson
+LineBot.BorderSizePixel = 0
+LineBot.ZIndex = 61
+LineBot.Parent = Splash
+
+local SplashCenter = Instance.new("Frame")
+SplashCenter.Size = UDim2.new(0.88, 0, 0.62, 0)
+SplashCenter.Position = UDim2.fromScale(0.5, 0.5)
+SplashCenter.AnchorPoint = Vector2.new(0.5, 0.5)
+SplashCenter.BackgroundTransparency = 1
+SplashCenter.ZIndex = 62
+SplashCenter.Parent = Splash
+
+local SplashLimit = Instance.new("UISizeConstraint")
+SplashLimit.MaxSize = Vector2.new(480, 340)
+SplashLimit.MinSize = Vector2.new(270, 220)
+SplashLimit.Parent = SplashCenter
+
+local SplashTitle = Instance.new("TextLabel")
+SplashTitle.Size = UDim2.new(1, 0, 0, 48)
+SplashTitle.Position = UDim2.new(0, 0, 0.06, 0)
+SplashTitle.BackgroundTransparency = 1
+SplashTitle.Font = Enum.Font.GothamBlack
+SplashTitle.RichText = true
+SplashTitle.Text = 'KNY_<font color="rgb(45,130,255)">HUB</font>'
+SplashTitle.TextColor3 = C.Text
+SplashTitle.TextSize = 38
+SplashTitle.TextTransparency = 1
+SplashTitle.ZIndex = 63
+SplashTitle.Parent = SplashCenter
+
+local SplashSub = Instance.new("TextLabel")
+SplashSub.Size = UDim2.new(1, 0, 0, 24)
+SplashSub.Position = UDim2.new(0, 0, 0.25, 0)
+SplashSub.BackgroundTransparency = 1
+SplashSub.Font = Enum.Font.GothamMedium
+SplashSub.Text = "CARGANDO NÚCLEO PARA " .. string.upper(LocalPlayer.DisplayName)
+SplashSub.TextColor3 = C.Muted
+SplashSub.TextSize = 12
+SplashSub.TextTransparency = 1
+SplashSub.TextWrapped = true
+SplashSub.ZIndex = 63
+SplashSub.Parent = SplashCenter
+
+local SplashStep = Instance.new("TextLabel")
+SplashStep.Size = UDim2.new(1, 0, 0, 22)
+SplashStep.Position = UDim2.new(0, 0, 0.45, 0)
+SplashStep.BackgroundTransparency = 1
+SplashStep.Font = Enum.Font.GothamSemibold
+SplashStep.Text = "Iniciando componentes..."
+SplashStep.TextColor3 = C.Blue
+SplashStep.TextSize = 12
+SplashStep.ZIndex = 63
+SplashStep.Parent = SplashCenter
+
+local BarBg = Instance.new("Frame")
+BarBg.Size = UDim2.new(0.86, 0, 0, 10)
+BarBg.Position = UDim2.new(0.07, 0, 0.56, 0)
+BarBg.BackgroundColor3 = C.Card
+BarBg.BorderSizePixel = 0
+BarBg.ZIndex = 63
+BarBg.Parent = SplashCenter
+Decorate(BarBg, 5, C.Border, 1)
+
+local BarFill = Instance.new("Frame")
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = C.Blue
+BarFill.BorderSizePixel = 0
+BarFill.ZIndex = 64
+BarFill.Parent = BarBg
+Decorate(BarFill, 5, nil, 0)
+
+local SplashPct = Instance.new("TextLabel")
+SplashPct.Size = UDim2.new(1, 0, 0, 20)
+SplashPct.Position = UDim2.new(0, 0, 0.68, 0)
+SplashPct.BackgroundTransparency = 1
+SplashPct.Font = Enum.Font.GothamBold
+SplashPct.Text = "0%  •  15s"
+SplashPct.TextColor3 = C.Text
+SplashPct.TextSize = 12
+SplashPct.ZIndex = 63
+SplashPct.Parent = SplashCenter
+
+-- ==========================================
+-- 3. INTERFAZ DE KEY PROFESIONAL (CERO PISTAS)
+-- ==========================================
+local KeyScreen = Instance.new("Frame")
+KeyScreen.Name = "KeyScreen"
+KeyScreen.Size = UDim2.fromScale(1, 1)
+KeyScreen.Position = UDim2.fromScale(0, 0)
+KeyScreen.BackgroundColor3 = Color3.fromRGB(7, 9, 15)
+KeyScreen.BackgroundTransparency = 0.12
+KeyScreen.BorderSizePixel = 0
+KeyScreen.Visible = false
+KeyScreen.ZIndex = 45
+KeyScreen.Parent = Gui
+
+local KeyPanel = Instance.new("Frame")
+KeyPanel.Name = "KeyPanel"
+KeyPanel.Size = UDim2.new(0.9, 0, 0.72, 0)
+KeyPanel.Position = UDim2.fromScale(0.5, 0.56)
+KeyPanel.AnchorPoint = Vector2.new(0.5, 0.5)
+KeyPanel.BackgroundColor3 = C.Surface
+KeyPanel.BorderSizePixel = 0
+KeyPanel.ZIndex = 46
+KeyPanel.Parent = KeyScreen
+Decorate(KeyPanel, 16, C.Blue, 1.5)
+
+local KeyPanelLimit = Instance.new("UISizeConstraint")
+KeyPanelLimit.MaxSize = Vector2.new(445, 345)
+KeyPanelLimit.MinSize = Vector2.new(280, 270)
+KeyPanelLimit.Parent = KeyPanel
+
+local KeyGrad = Instance.new("UIGradient")
+KeyGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(24, 31, 49)),
+    ColorSequenceKeypoint.new(0.55, Color3.fromRGB(16, 20, 31)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(34, 15, 29))
+})
+KeyGrad.Rotation = 135
+KeyGrad.Parent = KeyPanel
+
+local KeyRibbon = Instance.new("Frame")
+KeyRibbon.Size = UDim2.new(1, 0, 0, 4)
+KeyRibbon.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+KeyRibbon.BorderSizePixel = 0
+KeyRibbon.ZIndex = 47
+KeyRibbon.Parent = KeyPanel
+Decorate(KeyRibbon, 16, nil, 0)
+
+local KeyRibbonGrad = Instance.new("UIGradient")
+KeyRibbonGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.Blue),
+    ColorSequenceKeypoint.new(0.5, C.Purple),
+    ColorSequenceKeypoint.new(1, C.Crimson)
+})
+KeyRibbonGrad.Parent = KeyRibbon
+
+local KeyTopRow = Instance.new("Frame")
+KeyTopRow.Size = UDim2.new(1, -28, 0, 42)
+KeyTopRow.Position = UDim2.new(0, 14, 0, 14)
+KeyTopRow.BackgroundTransparency = 1
+KeyTopRow.ZIndex = 47
+KeyTopRow.Parent = KeyPanel
+
+local KeyBadge = Instance.new("Frame")
+KeyBadge.Size = UDim2.new(0, 40, 0, 40)
+KeyBadge.BackgroundColor3 = C.CardDark
+KeyBadge.ZIndex = 48
+KeyBadge.Parent = KeyTopRow
+Decorate(KeyBadge, 10, C.Blue, 1)
+
+local KeyBadgeTxt = Instance.new("TextLabel")
+KeyBadgeTxt.Size = UDim2.fromScale(1, 1)
+KeyBadgeTxt.BackgroundTransparency = 1
+KeyBadgeTxt.Font = Enum.Font.GothamBlack
+KeyBadgeTxt.Text = "KEY"
+KeyBadgeTxt.TextColor3 = C.Blue
+KeyBadgeTxt.TextSize = 11
+KeyBadgeTxt.ZIndex = 49
+KeyBadgeTxt.Parent = KeyBadge
+
+local KeyHeading = Instance.new("TextLabel")
+KeyHeading.Size = UDim2.new(1, -86, 0, 22)
+KeyHeading.Position = UDim2.new(0, 48, 0, 1)
+KeyHeading.BackgroundTransparency = 1
+KeyHeading.Font = Enum.Font.GothamBlack
+KeyHeading.RichText = true
+KeyHeading.Text = 'KNY_<font color="rgb(45,130,255)">HUB</font> • AUTENTICACIÓN'
+KeyHeading.TextColor3 = C.Text
+KeyHeading.TextSize = 14
+KeyHeading.TextXAlignment = Enum.TextXAlignment.Left
+KeyHeading.TextTruncate = Enum.TextTruncate.AtEnd
+KeyHeading.ZIndex = 48
+KeyHeading.Parent = KeyTopRow
+
+local KeySubUser = Instance.new("TextLabel")
+KeySubUser.Size = UDim2.new(1, -86, 0, 18)
+KeySubUser.Position = UDim2.new(0, 48, 0, 22)
+KeySubUser.BackgroundTransparency = 1
+KeySubUser.Font = Enum.Font.Gotham
+KeySubUser.Text = "@" .. LocalPlayer.Name .. "  •  ID: " .. tostring(LocalPlayer.UserId)
+KeySubUser.TextColor3 = C.Muted
+KeySubUser.TextSize = 11
+KeySubUser.TextXAlignment = Enum.TextXAlignment.Left
+KeySubUser.TextTruncate = Enum.TextTruncate.AtEnd
+KeySubUser.ZIndex = 48
+KeySubUser.Parent = KeyTopRow
+
+local KeyExitBtn = Instance.new("TextButton")
+KeyExitBtn.Size = UDim2.new(0, 28, 0, 28)
+KeyExitBtn.Position = UDim2.new(1, -28, 0, 7)
+KeyExitBtn.BackgroundColor3 = C.CardDark
+KeyExitBtn.Font = Enum.Font.GothamBold
+KeyExitBtn.Text = "×"
+KeyExitBtn.TextColor3 = C.Crimson
+KeyExitBtn.TextSize = 16
+KeyExitBtn.ZIndex = 48
+KeyExitBtn.Parent = KeyTopRow
+Decorate(KeyExitBtn, 8, C.Border, 1)
+
+local KeyInfo = Instance.new("TextLabel")
+KeyInfo.Size = UDim2.new(1, -28, 0, 34)
+KeyInfo.Position = UDim2.new(0, 14, 0, 62)
+KeyInfo.BackgroundTransparency = 1
+KeyInfo.Font = Enum.Font.Gotham
+KeyInfo.Text = KeyConfig.KeyInfoText
+KeyInfo.TextColor3 = C.Muted
+KeyInfo.TextSize = 11
+KeyInfo.TextWrapped = true
+KeyInfo.TextXAlignment = Enum.TextXAlignment.Left
+KeyInfo.ZIndex = 47
+KeyInfo.Parent = KeyPanel
+
+local InputZone = Instance.new("Frame")
+InputZone.Size = UDim2.new(1, -28, 0, 40)
+InputZone.Position = UDim2.new(0, 14, 0, 104)
+InputZone.BackgroundTransparency = 1
+InputZone.ZIndex = 47
+InputZone.Parent = KeyPanel
+
+local KeyInput = Instance.new("TextBox")
+KeyInput.Size = UDim2.new(1, -82, 1, 0)
+KeyInput.BackgroundColor3 = C.CardDark
+KeyInput.Font = Enum.Font.GothamBold
+KeyInput.PlaceholderText = "Ingresa tu clave de acceso..."
+KeyInput.PlaceholderColor3 = Color3.fromRGB(115, 126, 150)
+KeyInput.Text = ""
+KeyInput.TextColor3 = C.Text
+KeyInput.TextSize = 12
+KeyInput.ClearTextOnFocus = false
+KeyInput.ZIndex = 48
+KeyInput.Parent = InputZone
+Decorate(KeyInput, 9, C.Border, 1)
+
+local PasteBtn = Instance.new("TextButton")
+PasteBtn.Size = UDim2.new(0, 74, 1, 0)
+PasteBtn.Position = UDim2.new(1, -74, 0, 0)
+PasteBtn.BackgroundColor3 = C.Card
+PasteBtn.Font = Enum.Font.GothamBold
+PasteBtn.Text = "Pegar"
+PasteBtn.TextColor3 = C.Text
+PasteBtn.TextSize = 11
+PasteBtn.ZIndex = 48
+PasteBtn.Parent = InputZone
+Decorate(PasteBtn, 9, C.Blue, 1)
+
+local KeyFeedback = Instance.new("TextLabel")
+KeyFeedback.Size = UDim2.new(1, -28, 0, 20)
+KeyFeedback.Position = UDim2.new(0, 14, 0, 150)
+KeyFeedback.BackgroundTransparency = 1
+KeyFeedback.Font = Enum.Font.GothamSemibold
+KeyFeedback.Text = "Listo para validar clave de acceso"
+KeyFeedback.TextColor3 = C.Gold
+KeyFeedback.TextSize = 11
+KeyFeedback.TextXAlignment = Enum.TextXAlignment.Left
+KeyFeedback.ZIndex = 47
+KeyFeedback.Parent = KeyPanel
+
+local UnlockBtn = Instance.new("TextButton")
+UnlockBtn.Size = UDim2.new(1, -28, 0, 40)
+UnlockBtn.Position = UDim2.new(0, 14, 0, 176)
+UnlockBtn.BackgroundColor3 = C.Blue
+UnlockBtn.Font = Enum.Font.GothamBlack
+UnlockBtn.Text = "DESBLOQUEAR KNY_HUB"
+UnlockBtn.TextColor3 = C.Text
+UnlockBtn.TextSize = 12
+UnlockBtn.ZIndex = 48
+UnlockBtn.Parent = KeyPanel
+Decorate(UnlockBtn, 10, nil, 0)
+
+local KeyBottomRow = Instance.new("Frame")
+KeyBottomRow.Size = UDim2.new(1, -28, 0, 32)
+KeyBottomRow.Position = UDim2.new(0, 14, 1, -46)
+KeyBottomRow.BackgroundTransparency = 1
+KeyBottomRow.ZIndex = 47
+KeyBottomRow.Parent = KeyPanel
+
+local CopyLinkBtn = Instance.new("TextButton")
+CopyLinkBtn.Size = UDim2.new(0.56, -4, 1, 0)
+CopyLinkBtn.BackgroundColor3 = C.Card
+CopyLinkBtn.Font = Enum.Font.GothamBold
+CopyLinkBtn.Text = "Copiar Enlace Key"
+CopyLinkBtn.TextColor3 = C.Muted
+CopyLinkBtn.TextSize = 11
+CopyLinkBtn.ZIndex = 48
+CopyLinkBtn.Parent = KeyBottomRow
+Decorate(CopyLinkBtn, 8, C.Border, 1)
+
+local WipeSavedBtn = Instance.new("TextButton")
+WipeSavedBtn.Size = UDim2.new(0.44, -4, 1, 0)
+WipeSavedBtn.Position = UDim2.new(0.56, 4, 0, 0)
+WipeSavedBtn.BackgroundColor3 = C.Card
+WipeSavedBtn.Font = Enum.Font.GothamBold
+WipeSavedBtn.Text = "Borrar Guardada"
+WipeSavedBtn.TextColor3 = C.Crimson
+WipeSavedBtn.TextSize = 11
+WipeSavedBtn.ZIndex = 48
+WipeSavedBtn.Parent = KeyBottomRow
+Decorate(WipeSavedBtn, 8, C.Border, 1)
+
+-- ==========================================
+-- 4. BOTÓN FLOTANTE REAPERTURA
+-- ==========================================
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Name = "FloatBtn"
+FloatBtn.Size = UDim2.new(0, 56, 0, 56)
+FloatBtn.Position = UDim2.new(0, 16, 0.5, -28)
+FloatBtn.BackgroundColor3 = C.Top
+FloatBtn.Font = Enum.Font.GothamBlack
+FloatBtn.Text = "KNY"
+FloatBtn.TextColor3 = C.Text
+FloatBtn.TextSize = 14
+FloatBtn.Visible = false
+FloatBtn.Active = true
+FloatBtn.ZIndex = 30
+FloatBtn.Parent = Gui
+Decorate(FloatBtn, 28, C.Blue, 1.5)
+
+local FloatGrad = Instance.new("UIGradient")
+FloatGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 44, 76)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(52, 18, 34))
+})
+FloatGrad.Rotation = 45
+FloatGrad.Parent = FloatBtn
+
+MakeDraggable(FloatBtn, FloatBtn)
+
+-- ==========================================
+-- 5. VENTANA PRINCIPAL REMODELADA
+-- ==========================================
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 536, 0, 358)
+Main.Position = UDim2.new(0.5, -268, 0.5, -179)
+Main.BackgroundColor3 = C.Bg
+Main.Active = true
+Main.Visible = false
+Main.ZIndex = 15
+Main.Parent = Gui
+Decorate(Main, 14, C.Border, 1)
+
+local MainGrad = Instance.new("UIGradient")
+MainGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(16, 21, 34)),
+    ColorSequenceKeypoint.new(0.55, Color3.fromRGB(12, 15, 22)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 14, 25))
+})
+MainGrad.Rotation = 135
+MainGrad.Parent = Main
+
+local MainLimit = Instance.new("UISizeConstraint")
+MainLimit.MaxSize = Vector2.new(570, 385)
+MainLimit.MinSize = Vector2.new(320, 235)
+MainLimit.Parent = Main
+
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 44)
+TopBar.BackgroundColor3 = C.Top
+TopBar.BorderSizePixel = 0
+TopBar.ZIndex = 16
+TopBar.Parent = Main
+Decorate(TopBar, 14, nil, 0)
+
+local TopPatch = Instance.new("Frame")
+TopPatch.Size = UDim2.new(1, 0, 0, 14)
+TopPatch.Position = UDim2.new(0, 0, 1, -14)
+TopPatch.BackgroundColor3 = C.Top
+TopPatch.BorderSizePixel = 0
+TopPatch.ZIndex = 16
+TopPatch.Parent = TopBar
+
+local TopAccent = Instance.new("Frame")
+TopAccent.Size = UDim2.new(1, 0, 0, 2)
+TopAccent.Position = UDim2.new(0, 0, 1, -2)
+TopAccent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TopAccent.BorderSizePixel = 0
+TopAccent.ZIndex = 17
+TopAccent.Parent = TopBar
+
+local TopAccentGrad = Instance.new("UIGradient")
+TopAccentGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, C.Blue),
+    ColorSequenceKeypoint.new(0.5, C.Purple),
+    ColorSequenceKeypoint.new(1, C.Crimson)
+})
+TopAccentGrad.Parent = TopAccent
+
+local LogoBox = Instance.new("Frame")
+LogoBox.Size = UDim2.new(0, 28, 0, 28)
+LogoBox.Position = UDim2.new(0, 12, 0.5, -14)
+LogoBox.BackgroundColor3 = C.Card
+LogoBox.ZIndex = 17
+LogoBox.Parent = TopBar
+Decorate(LogoBox, 8, C.Blue, 1)
+
+local LogoTxt = Instance.new("TextLabel")
+LogoTxt.Size = UDim2.fromScale(1, 1)
+LogoTxt.BackgroundTransparency = 1
+LogoTxt.Font = Enum.Font.GothamBlack
+LogoTxt.Text = "K"
+LogoTxt.TextColor3 = C.Blue
+LogoTxt.TextSize = 14
+LogoTxt.ZIndex = 18
+LogoTxt.Parent = LogoBox
+
+local MainTitle = Instance.new("TextLabel")
+MainTitle.Size = UDim2.new(0, 270, 1, 0)
+MainTitle.Position = UDim2.new(0, 47, 0, 0)
+MainTitle.BackgroundTransparency = 1
+MainTitle.Font = Enum.Font.GothamBlack
+MainTitle.RichText = true
+MainTitle.Text = 'KNY_<font color="rgb(45,130,255)">HUB</font> <font size="11" color="rgb(160,169,190)">' .. KeyConfig.Version .. '</font>'
+MainTitle.TextColor3 = C.Text
+MainTitle.TextSize = 15
+MainTitle.TextXAlignment = Enum.TextXAlignment.Left
+MainTitle.ZIndex = 17
+MainTitle.Parent = TopBar
+
+local StatusPill = Instance.new("TextLabel")
+StatusPill.Size = UDim2.new(0, 74, 0, 20)
+StatusPill.Position = UDim2.new(1, -154, 0.5, -10)
+StatusPill.BackgroundColor3 = C.CardDark
+StatusPill.Font = Enum.Font.GothamBold
+StatusPill.Text = "● SEGURO"
+StatusPill.TextColor3 = C.Gold
+StatusPill.TextSize = 10
+StatusPill.ZIndex = 17
+StatusPill.Parent = TopBar
+Decorate(StatusPill, 10, C.Gold, 1)
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 28, 0, 28)
+MinBtn.Position = UDim2.new(1, -70, 0.5, -14)
+MinBtn.BackgroundColor3 = C.Card
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.Text = "-"
+MinBtn.TextColor3 = C.Gold
+MinBtn.TextSize = 16
+MinBtn.ZIndex = 17
+MinBtn.Parent = TopBar
+Decorate(MinBtn, 7, C.Border, 1)
+
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 28, 0, 28)
+HideBtn.Position = UDim2.new(1, -36, 0.5, -14)
+HideBtn.BackgroundColor3 = C.Card
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.Text = "×"
+HideBtn.TextColor3 = C.Crimson
+HideBtn.TextSize = 16
+HideBtn.ZIndex = 17
+HideBtn.Parent = TopBar
+Decorate(HideBtn, 7, C.Border, 1)
+
+MakeDraggable(TopBar, Main)
+
+-- ==========================================
+-- 6. PESTAÑAS Y CONTENIDO
+-- ==========================================
+local SideBar = Instance.new("Frame")
+SideBar.Size = UDim2.new(0, 134, 1, -58)
+SideBar.Position = UDim2.new(0, 10, 0, 50)
+SideBar.BackgroundColor3 = C.Surface
+SideBar.ZIndex = 16
+SideBar.Parent = Main
+Decorate(SideBar, 10, C.Border, 1)
+
+local SideLayout = Instance.new("UIListLayout")
+SideLayout.Padding = UDim.new(0, 6)
+SideLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SideLayout.Parent = SideBar
+
+local SidePad = Instance.new("UIPadding")
+SidePad.PaddingTop = UDim.new(0, 8)
+SidePad.PaddingBottom = UDim.new(0, 8)
+SidePad.Parent = SideBar
+
+local DevBadge = Instance.new("TextLabel")
+DevBadge.Size = UDim2.new(1, -14, 0, 22)
+DevBadge.Position = UDim2.new(0, 7, 1, -28)
+DevBadge.BackgroundColor3 = C.CardDark
+DevBadge.Font = Enum.Font.GothamSemibold
+DevBadge.Text = DeviceLabel
+DevBadge.TextColor3 = C.Muted
+DevBadge.TextSize = 10
+DevBadge.LayoutOrder = 99
+DevBadge.ZIndex = 17
+DevBadge.Parent = SideBar
+Decorate(DevBadge, 6, C.Border, 1)
+
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -160, 1, -58)
+Content.Position = UDim2.new(0, 150, 0, 50)
+Content.BackgroundTransparency = 1
+Content.ZIndex = 16
+Content.Parent = Main
+
+local Pages = {}
+local TabBtns = {}
+
+local function AddTab(name, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -14, 0, 34)
+    btn.BackgroundColor3 = C.Card
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = name
+    btn.TextColor3 = C.Muted
+    btn.TextSize = 13
+    btn.LayoutOrder = order
+    btn.ZIndex = 17
+    btn.Parent = SideBar
+    Decorate(btn, 8, nil, 0)
+
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = C.Blue
+    page.Visible = false
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.ZIndex = 17
+    page.Parent = Content
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 8)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = page
+
+    Pages[name] = page
+    TabBtns[name] = btn
+
+    btn.MouseButton1Click:Connect(function()
+        PlaySfx(SFX.Click, 0.35, 1.12)
+        for tName, p in pairs(Pages) do
+            p.Visible = (tName == name)
+            TabBtns[tName].BackgroundColor3 = (tName == name) and C.Blue or C.Card
+            TabBtns[tName].TextColor3 = (tName == name) and C.Text or C.Muted
+        end
+    end)
+
+    return page
+end
+
+local HomeTab = AddTab("Inicio", 1)
+local FuncTab = AddTab("Funciones", 2)
+local TipsTab = AddTab("Consejos", 3)
+
+HomeTab.Visible = true
+TabBtns["Inicio"].BackgroundColor3 = C.Blue
+TabBtns["Inicio"].TextColor3 = C.Text
+
+-- ==========================================
+-- 7. PESTAÑA INICIO
+-- ==========================================
+local ProfCard = Instance.new("Frame")
+ProfCard.Size = UDim2.new(1, -4, 0, 80)
+ProfCard.BackgroundColor3 = C.Card
+ProfCard.LayoutOrder = 1
+ProfCard.Parent = HomeTab
+Decorate(ProfCard, 10, C.Border, 1)
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Size = UDim2.new(0, 60, 0, 60)
+Avatar.Position = UDim2.new(0, 10, 0.5, -30)
+Avatar.BackgroundColor3 = C.Top
+Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+Avatar.Parent = ProfCard
+Decorate(Avatar, 30, C.Blue, 1)
+
+local ProfName = Instance.new("TextLabel")
+ProfName.Size = UDim2.new(1, -84, 0, 22)
+ProfName.Position = UDim2.new(0, 78, 0, 9)
+ProfName.BackgroundTransparency = 1
+ProfName.Font = Enum.Font.GothamBold
+ProfName.Text = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
+ProfName.TextColor3 = C.Text
+ProfName.TextSize = 13
+ProfName.TextXAlignment = Enum.TextXAlignment.Left
+ProfName.TextTruncate = Enum.TextTruncate.AtEnd
+ProfName.Parent = ProfCard
+
+local IdBox = Instance.new("TextLabel")
+IdBox.Size = UDim2.new(0, 150, 0, 20)
+IdBox.Position = UDim2.new(0, 78, 0, 32)
+IdBox.BackgroundColor3 = C.CardDark
+IdBox.Font = Enum.Font.GothamSemibold
+IdBox.Text = "ID: " .. tostring(LocalPlayer.UserId)
+IdBox.TextColor3 = C.Muted
+IdBox.TextSize = 11
+IdBox.Parent = ProfCard
+Decorate(IdBox, 6, C.Border, 1)
+
+local HubBox = Instance.new("TextLabel")
+HubBox.Size = UDim2.new(0, 128, 0, 20)
+HubBox.Position = UDim2.new(0, 234, 0, 32)
+HubBox.BackgroundColor3 = C.CardDark
+HubBox.Font = Enum.Font.GothamBold
+HubBox.Text = "KNY_HUB " .. KeyConfig.Version
+HubBox.TextColor3 = C.Blue
+HubBox.TextSize = 10
+HubBox.TextTruncate = Enum.TextTruncate.AtEnd
+HubBox.Parent = ProfCard
+Decorate(HubBox, 6, C.Blue, 1)
+
+local ProfStatus = Instance.new("TextLabel")
+ProfStatus.Size = UDim2.new(1, -84, 0, 16)
+ProfStatus.Position = UDim2.new(0, 78, 0, 55)
+ProfStatus.BackgroundTransparency = 1
+ProfStatus.Font = Enum.Font.GothamSemibold
+ProfStatus.Text = "● Activa seguro en Funciones antes de ajustar movimiento"
+ProfStatus.TextColor3 = C.Gold
+ProfStatus.TextSize = 11
+ProfStatus.TextXAlignment = Enum.TextXAlignment.Left
+ProfStatus.Parent = ProfCard
+
+local GameCard = Instance.new("Frame")
+GameCard.Size = UDim2.new(1, -4, 0, 68)
+GameCard.BackgroundColor3 = C.Card
+GameCard.LayoutOrder = 2
+GameCard.Parent = HomeTab
+Decorate(GameCard, 10, C.Border, 1)
+
+local GameHdr = Instance.new("TextLabel")
+GameHdr.Size = UDim2.new(0.62, 0, 0, 20)
+GameHdr.Position = UDim2.new(0, 12, 0, 8)
+GameHdr.BackgroundTransparency = 1
+GameHdr.Font = Enum.Font.GothamBold
+GameHdr.Text = "JUEGO & PLACE ID"
+GameHdr.TextColor3 = C.Blue
+GameHdr.TextSize = 11
+GameHdr.TextXAlignment = Enum.TextXAlignment.Left
+GameHdr.Parent = GameCard
+
+local PerfLbl = Instance.new("TextLabel")
+PerfLbl.Size = UDim2.new(0.38, -14, 0, 20)
+PerfLbl.Position = UDim2.new(0.62, 0, 0, 8)
+PerfLbl.BackgroundTransparency = 1
+PerfLbl.Font = Enum.Font.GothamBold
+PerfLbl.Text = "FPS: -- | Ping: --"
+PerfLbl.TextColor3 = C.Green
+PerfLbl.TextSize = 10
+PerfLbl.TextXAlignment = Enum.TextXAlignment.Right
+PerfLbl.Parent = GameCard
+
+local GameBody = Instance.new("TextLabel")
+GameBody.Size = UDim2.new(1, -24, 0, 32)
+GameBody.Position = UDim2.new(0, 12, 0, 28)
+GameBody.BackgroundTransparency = 1
+GameBody.Font = Enum.Font.GothamSemibold
+GameBody.Text = GameName .. "  •  ID: " .. tostring(game.PlaceId)
+GameBody.TextColor3 = C.Text
+GameBody.TextSize = 12
+GameBody.TextWrapped = true
+GameBody.TextXAlignment = Enum.TextXAlignment.Left
+GameBody.TextYAlignment = Enum.TextYAlignment.Top
+GameBody.Parent = GameCard
+
+task.spawn(function()
+    local frames = 0
+    local acc = 0
+    local conn
+    conn = RunService.RenderStepped:Connect(function(dt)
+        if not Gui or not Gui.Parent then
+            if conn then conn:Disconnect() end
+            return
+        end
+        frames += 1
+        acc += dt
+        if acc >= 1 then
+            local fps = math.floor(frames / acc)
+            local ping = 0
+            pcall(function()
+                ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            end)
+            PerfLbl.Text = string.format("FPS: %d | %dms", fps, ping)
+            frames = 0
+            acc = 0
+        end
+    end)
+end)
+
+local TipsList = {
+    "Mantén tu clave de acceso privada y no la compartas con terceros.",
+    "Activa el Seguro de Entorno en Funciones antes de ajustar velocidad o salto.",
+    "Usa los botones [- / +] y presets rápidos para cambiar valores sin deslizar.",
+    "Salto con Impulso aplica un empuje vertical extra al saltar en el aire.",
+    "Guarda tu posición actual antes de explorar zonas complicadas.",
+    "El modo Limpieza Visual reduce niebla y sombras locales para ganar FPS.",
+    "Usa '-' para minimizar la barra o '×' para dejar el botón flotante KNY.",
+    "El botón flotante KNY se puede arrastrar a cualquier borde de tu pantalla.",
+    "Revisa FPS y Ping arriba para ver el rendimiento en tu equipo.",
+    "Usa Restaurar para volver a velocidad 16 y salto 50."
+}
+
+local TipCard = Instance.new("Frame")
+TipCard.Size = UDim2.new(1, -4, 0, 72)
+TipCard.BackgroundColor3 = C.Card
+TipCard.LayoutOrder = 3
+TipCard.Parent = HomeTab
+Decorate(TipCard, 10, C.Border, 1)
+
+local TipHdr = Instance.new("TextLabel")
+TipHdr.Size = UDim2.new(1, -92, 0, 20)
+TipHdr.Position = UDim2.new(0, 12, 0, 8)
+TipHdr.BackgroundTransparency = 1
+TipHdr.Font = Enum.Font.GothamBold
+TipHdr.Text = "💡 CONSEJO DEL DÍA"
+TipHdr.TextColor3 = C.Gold
+TipHdr.TextSize = 11
+TipHdr.TextXAlignment = Enum.TextXAlignment.Left
+TipHdr.Parent = TipCard
+
+local NextTipBtn = Instance.new("TextButton")
+NextTipBtn.Size = UDim2.new(0, 74, 0, 20)
+NextTipBtn.Position = UDim2.new(1, -84, 0, 8)
+NextTipBtn.BackgroundColor3 = C.CardDark
+NextTipBtn.Font = Enum.Font.GothamBold
+NextTipBtn.Text = "Siguiente"
+NextTipBtn.TextColor3 = C.Text
+NextTipBtn.TextSize = 10
+NextTipBtn.Parent = TipCard
+Decorate(NextTipBtn, 6, C.Border, 1)
+
+local TipBody = Instance.new("TextLabel")
+TipBody.Size = UDim2.new(1, -24, 0, 36)
+TipBody.Position = UDim2.new(0, 12, 0, 30)
+TipBody.BackgroundTransparency = 1
+TipBody.Font = Enum.Font.Gotham
+TipBody.Text = TipsList[1]
+TipBody.TextColor3 = C.Muted
+TipBody.TextSize = 11
+TipBody.TextWrapped = true
+TipBody.TextXAlignment = Enum.TextXAlignment.Left
+TipBody.TextYAlignment = Enum.TextYAlignment.Top
+TipBody.Parent = TipCard
+
+local currentTip = 1
+local function ShowTip(i)
+    currentTip = ((i - 1) % #TipsList) + 1
+    TipBody.Text = TipsList[currentTip]
+end
+
+NextTipBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 1.2)
+    ShowTip(currentTip + 1)
+end)
+
+task.spawn(function()
+    while Gui and Gui.Parent do
+        task.wait(6.5)
+        if Gui and Gui.Parent then
+            ShowTip(currentTip + 1)
+        end
+    end
+end)
+
+local HomeBtns = Instance.new("Frame")
+HomeBtns.Size = UDim2.new(1, -4, 0, 36)
+HomeBtns.BackgroundTransparency = 1
+HomeBtns.LayoutOrder = 4
+HomeBtns.Parent = HomeTab
+
+local TestNotifBtn = Instance.new("TextButton")
+TestNotifBtn.Size = UDim2.new(0.62, -4, 1, 0)
+TestNotifBtn.BackgroundColor3 = C.Blue
+TestNotifBtn.Font = Enum.Font.GothamBold
+TestNotifBtn.Text = "Probar Notificación Pro"
+TestNotifBtn.TextColor3 = C.Text
+TestNotifBtn.TextSize = 12
+TestNotifBtn.Parent = HomeBtns
+Decorate(TestNotifBtn, 8, nil, 0)
+
+local MinQuickBtn = Instance.new("TextButton")
+MinQuickBtn.Size = UDim2.new(0.38, -4, 1, 0)
+MinQuickBtn.Position = UDim2.new(0.62, 4, 0, 0)
+MinQuickBtn.BackgroundColor3 = C.Card
+MinQuickBtn.Font = Enum.Font.GothamBold
+MinQuickBtn.Text = "Minimizar"
+MinQuickBtn.TextColor3 = C.Gold
+MinQuickBtn.TextSize = 12
+MinQuickBtn.Parent = HomeBtns
+Decorate(MinQuickBtn, 8, C.Border, 1)
+
+TestNotifBtn.MouseButton1Click:Connect(function()
+    Notify("Notificación KNY", "Sistema visual y de sonido funcionando sin fallos.", 4, C.Blue, "ALERTA")
+end)
+
+-- ==========================================
+-- 8. PESTAÑA FUNCIONES
+-- ==========================================
+local State = {
+    SafeEnabled = false,
+    JumpImpulse = false,
+    ImpulsePower = 55,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    AntiAfk = false,
+    CleanVisuals = false,
+    SavedPos = nil
+}
+
+local function GetCharParts()
+    local char = LocalPlayer.Character
+    if char then
+        return char:FindFirstChildOfClass("Humanoid"), char:FindFirstChild("HumanoidRootPart")
+    end
+    return nil, nil
+end
+
+local function ApplyStats()
+    local hum = GetCharParts()
+    if not hum then return end
+    hum.WalkSpeed = State.WalkSpeed
+    if hum.UseJumpPower then
+        hum.JumpPower = State.JumpPower
+    else
+        hum.JumpHeight = math.max(1, math.floor(State.JumpPower * 0.14))
+    end
+end
+
+local function CheckSafe(name)
+    if not State.SafeEnabled then
+        Notify("Seguro Activado", "Activa 'Habilitar Controles' primero para usar " .. name .. ".", 4, C.Gold, "SEGURIDAD")
+        return false
+    end
+    return true
+end
+
+local SafeCard = Instance.new("Frame")
+SafeCard.Size = UDim2.new(1, -4, 0, 56)
+SafeCard.BackgroundColor3 = C.Card
+SafeCard.LayoutOrder = 1
+SafeCard.Parent = FuncTab
+Decorate(SafeCard, 10, C.Gold, 1)
+
+local SafeTitle = Instance.new("TextLabel")
+SafeTitle.Size = UDim2.new(1, -135, 0, 20)
+SafeTitle.Position = UDim2.new(0, 12, 0, 8)
+SafeTitle.BackgroundTransparency = 1
+SafeTitle.Font = Enum.Font.GothamBold
+SafeTitle.Text = "Seguro de Entorno (Requerido)"
+SafeTitle.TextColor3 = C.Text
+SafeTitle.TextSize = 12
+SafeTitle.TextXAlignment = Enum.TextXAlignment.Left
+SafeTitle.Parent = SafeCard
+
+local SafeDesc = Instance.new("TextLabel")
+SafeDesc.Size = UDim2.new(1, -135, 0, 18)
+SafeDesc.Position = UDim2.new(0, 12, 0, 29)
+SafeDesc.BackgroundTransparency = 1
+SafeDesc.Font = Enum.Font.Gotham
+SafeDesc.Text = "Habilita los módulos de movimiento y salto"
+SafeDesc.TextColor3 = C.Muted
+SafeDesc.TextSize = 10
+SafeDesc.TextXAlignment = Enum.TextXAlignment.Left
+SafeDesc.Parent = SafeCard
+
+local SafeBtn = Instance.new("TextButton")
+SafeBtn.Size = UDim2.new(0, 112, 0, 32)
+SafeBtn.Position = UDim2.new(1, -122, 0.5, -16)
+SafeBtn.BackgroundColor3 = C.CardDark
+SafeBtn.Font = Enum.Font.GothamBold
+SafeBtn.Text = "ACTIVAR"
+SafeBtn.TextColor3 = C.Gold
+SafeBtn.TextSize = 11
+SafeBtn.Parent = SafeCard
+Decorate(SafeBtn, 7, C.Gold, 1)
+
+local function MakeToggle(order, title, desc, cb)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -4, 0, 54)
+    card.BackgroundColor3 = C.Card
+    card.LayoutOrder = order
+    card.Parent = FuncTab
+    Decorate(card, 10, C.Border, 1)
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Size = UDim2.new(1, -110, 0, 20)
+    tLbl.Position = UDim2.new(0, 12, 0, 7)
+    tLbl.BackgroundTransparency = 1
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.Text = title
+    tLbl.TextColor3 = C.Text
+    tLbl.TextSize = 12
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.Parent = card
+
+    local dLbl = Instance.new("TextLabel")
+    dLbl.Size = UDim2.new(1, -110, 0, 18)
+    dLbl.Position = UDim2.new(0, 12, 0, 28)
+    dLbl.BackgroundTransparency = 1
+    dLbl.Font = Enum.Font.Gotham
+    dLbl.Text = desc
+    dLbl.TextColor3 = C.Muted
+    dLbl.TextSize = 10
+    dLbl.TextXAlignment = Enum.TextXAlignment.Left
+    dLbl.Parent = card
+
+    local sw = Instance.new("TextButton")
+    sw.Size = UDim2.new(0, 86, 0, 30)
+    sw.Position = UDim2.new(1, -98, 0.5, -15)
+    sw.BackgroundColor3 = C.CardDark
+    sw.Font = Enum.Font.GothamBold
+    sw.Text = "OFF"
+    sw.TextColor3 = C.Muted
+    sw.TextSize = 11
+    sw.Parent = card
+    Decorate(sw, 15, C.Border, 1)
+
+    local isOn = false
+    local function SetSw(v)
+        isOn = v
+        sw.Text = isOn and "ON" or "OFF"
+        sw.BackgroundColor3 = isOn and C.Blue or C.CardDark
+        sw.TextColor3 = isOn and C.Text or C.Muted
+    end
+
+    sw.MouseButton1Click:Connect(function()
+        local nextV = not isOn
+        local ok = cb(nextV, SetSw)
+        if ok ~= false then
+            SetSw(nextV)
+        end
+    end)
+
+    return SetSw
+end
+
+local function MakeStepper(order, title, initV, minV, maxV, stepV, presets, cb)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -4, 0, 76)
+    card.BackgroundColor3 = C.Card
+    card.LayoutOrder = order
+    card.Parent = FuncTab
+    Decorate(card, 10, C.Border, 1)
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(0.55, 0, 0, 22)
+    titleLbl.Position = UDim2.new(0, 12, 0, 7)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.Text = title
+    titleLbl.TextColor3 = C.Text
+    titleLbl.TextSize = 12
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = card
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Size = UDim2.new(0, 66, 0, 22)
+    valLbl.Position = UDim2.new(1, -142, 0, 7)
+    valLbl.BackgroundColor3 = C.CardDark
+    valLbl.Font = Enum.Font.GothamBlack
+    valLbl.Text = tostring(initV)
+    valLbl.TextColor3 = C.Blue
+    valLbl.TextSize = 12
+    valLbl.Parent = card
+    Decorate(valLbl, 6, C.Blue, 1)
+
+    local minus = Instance.new("TextButton")
+    minus.Size = UDim2.new(0, 28, 0, 22)
+    minus.Position = UDim2.new(1, -174, 0, 7)
+    minus.BackgroundColor3 = C.CardDark
+    minus.Font = Enum.Font.GothamBold
+    minus.Text = "-"
+    minus.TextColor3 = C.Text
+    minus.TextSize = 14
+    minus.Parent = card
+    Decorate(minus, 6, C.Border, 1)
+
+    local plus = Instance.new("TextButton")
+    plus.Size = UDim2.new(0, 28, 0, 22)
+    plus.Position = UDim2.new(1, -72, 0, 7)
+    plus.BackgroundColor3 = C.CardDark
+    plus.Font = Enum.Font.GothamBold
+    plus.Text = "+"
+    plus.TextColor3 = C.Text
+    plus.TextSize = 14
+    plus.Parent = card
+    Decorate(plus, 6, C.Border, 1)
+
+    local cur = initV
+    local function SetVal(nv)
+        cur = math.clamp(nv, minV, maxV)
+        valLbl.Text = tostring(cur)
+        cb(cur)
+    end
+
+    minus.MouseButton1Click:Connect(function()
+        PlaySfx(SFX.Click, 0.25, 0.95)
+        SetVal(cur - stepV)
+    end)
+
+    plus.MouseButton1Click:Connect(function()
+        PlaySfx(SFX.Click, 0.25, 1.15)
+        SetVal(cur + stepV)
+    end)
+
+    local pRow = Instance.new("Frame")
+    pRow.Size = UDim2.new(1, -24, 0, 26)
+    pRow.Position = UDim2.new(0, 12, 0, 40)
+    pRow.BackgroundTransparency = 1
+    pRow.Parent = card
+
+    local pLayout = Instance.new("UIListLayout")
+    pLayout.FillDirection = Enum.FillDirection.Horizontal
+    pLayout.Padding = UDim.new(0, 6)
+    pLayout.Parent = pRow
+
+    for _, pv in ipairs(presets) do
+        local pb = Instance.new("TextButton")
+        pb.Size = UDim2.new(0, 56, 1, 0)
+        pb.BackgroundColor3 = C.CardDark
+        pb.Font = Enum.Font.GothamBold
+        pb.Text = tostring(pv)
+        pb.TextColor3 = C.Muted
+        pb.TextSize = 11
+        pb.Parent = pRow
+        Decorate(pb, 6, C.Border, 1)
+
+        pb.MouseButton1Click:Connect(function()
+            PlaySfx(SFX.Click, 0.25, 1.1)
+            SetVal(pv)
+        end)
+    end
+
+    return SetVal
+end
+
+local SetImpulseSw
+SetImpulseSw = MakeToggle(2, "Salto con Impulso Aéreo", "Aplica impulso vertical al saltar en el aire", function(v)
+    if v and not CheckSafe("Salto con Impulso") then return false end
+    State.JumpImpulse = v
+    Notify("Salto con Impulso", v and ("Activado (" .. tostring(State.ImpulsePower) .. ").") or "Desactivado.", 3, v and C.Green or C.Crimson, "MOVIMIENTO")
+    return true
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if not State.JumpImpulse or not State.SafeEnabled then return end
+    local hum, hrp = GetCharParts()
+    if hum and hrp and hum:GetState() ~= Enum.HumanoidStateType.Seated then
+        local vel = hrp.AssemblyLinearVelocity
+        hrp.AssemblyLinearVelocity = Vector3.new(vel.X, State.ImpulsePower, vel.Z)
+    end
+end)
+
+MakeStepper(3, "Fuerza de Impulso", 55, 25, 110, 5, {35, 55, 75, 95}, function(v)
+    State.ImpulsePower = v
+end)
+
+local SetSpeedUI = MakeStepper(4, "Velocidad (WalkSpeed)", 16, 10, 60, 4, {16, 24, 36, 48}, function(v)
+    if not CheckSafe("Velocidad") then return end
+    State.WalkSpeed = v
+    ApplyStats()
+end)
+
+local SetJumpUI = MakeStepper(5, "Salto Base (JumpPower)", 50, 30, 120, 5, {50, 70, 90, 110}, function(v)
+    if not CheckSafe("Salto Base") then return end
+    State.JumpPower = v
+    ApplyStats()
+end)
+
+SafeBtn.MouseButton1Click:Connect(function()
+    State.SafeEnabled = not State.SafeEnabled
+    if State.SafeEnabled then
+        SafeBtn.Text = "HABILITADO"
+        SafeBtn.BackgroundColor3 = C.Green
+        SafeBtn.TextColor3 = C.Bg
+        StatusPill.Text = "● LISTO"
+        StatusPill.TextColor3 = C.Green
+        ProfStatus.Text = "● Seguro habilitado • Controles activos"
+        ProfStatus.TextColor3 = C.Green
+        Notify("Entorno Listo", "Controles de movimiento habilitados.", 3, C.Green, "LISTO")
+    else
+        State.JumpImpulse = false
+        State.WalkSpeed = 16
+        State.JumpPower = 50
+        if SetImpulseSw then SetImpulseSw(false) end
+        SetSpeedUI(16)
+        SetJumpUI(50)
+        ApplyStats()
+        SafeBtn.Text = "ACTIVAR"
+        SafeBtn.BackgroundColor3 = C.CardDark
+        SafeBtn.TextColor3 = C.Gold
+        StatusPill.Text = "● SEGURO"
+        StatusPill.TextColor3 = C.Gold
+        ProfStatus.Text = "● Seguro activo • Valores restaurados"
+        ProfStatus.TextColor3 = C.Gold
+        Notify("Seguro Activado", "Se pausaron los ajustes de movimiento.", 3, C.Gold, "SEGURIDAD")
+    end
+end)
+
+local WpRow = Instance.new("Frame")
+WpRow.Size = UDim2.new(1, -4, 0, 36)
+WpRow.BackgroundTransparency = 1
+WpRow.LayoutOrder = 6
+WpRow.Parent = FuncTab
+
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Size = UDim2.new(0.34, -4, 1, 0)
+SaveBtn.BackgroundColor3 = C.Card
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.Text = "Guardar Pos."
+SaveBtn.TextColor3 = C.Blue
+SaveBtn.TextSize = 11
+SaveBtn.Parent = WpRow
+Decorate(SaveBtn, 8, C.Blue, 1)
+
+local TpBtn = Instance.new("TextButton")
+TpBtn.Size = UDim2.new(0.34, -4, 1, 0)
+TpBtn.Position = UDim2.new(0.34, 2, 0, 0)
+TpBtn.BackgroundColor3 = C.Card
+TpBtn.Font = Enum.Font.GothamBold
+TpBtn.Text = "Ir a Posición"
+TpBtn.TextColor3 = C.Green
+TpBtn.TextSize = 11
+TpBtn.Parent = WpRow
+Decorate(TpBtn, 8, C.Green, 1)
+
+local ResetBtn = Instance.new("TextButton")
+ResetBtn.Size = UDim2.new(0.32, -2, 1, 0)
+ResetBtn.Position = UDim2.new(0.68, 2, 0, 0)
+ResetBtn.BackgroundColor3 = C.Card
+ResetBtn.Font = Enum.Font.GothamBold
+ResetBtn.Text = "Restaurar"
+ResetBtn.TextColor3 = C.Gold
+ResetBtn.TextSize = 11
+ResetBtn.Parent = WpRow
+Decorate(ResetBtn, 8, C.Gold, 1)
+
+SaveBtn.MouseButton1Click:Connect(function()
+    if not CheckSafe("Guardar Posición") then return end
+    local _, hrp = GetCharParts()
+    if hrp then
+        State.SavedPos = hrp.CFrame
+        Notify("Posición Guardada", "Punto guardado en esta sesión.", 3, C.Blue, "WAYPOINT")
+    end
+end)
+
+TpBtn.MouseButton1Click:Connect(function()
+    if not CheckSafe("Ir a Posición") then return end
+    local _, hrp = GetCharParts()
+    if hrp and State.SavedPos then
+        hrp.CFrame = State.SavedPos + Vector3.new(0, 2, 0)
+        Notify("Teletransporte Listo", "Volviste a tu posición guardada.", 3, C.Green, "WAYPOINT")
+    else
+        Notify("Sin Posición", "Primero guarda una posición.", 3, C.Gold, "AVISO")
+    end
+end)
+
+ResetBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 1)
+    State.WalkSpeed = 16
+    State.JumpPower = 50
+    State.ImpulsePower = 55
+    State.JumpImpulse = false
+    if SetImpulseSw then SetImpulseSw(false) end
+    SetSpeedUI(16)
+    SetJumpUI(50)
+    ApplyStats()
+    Notify("Restaurado", "Valores normales aplicados.", 3, C.Gold, "RESET")
+end)
+
+MakeToggle(7, "Anti-AFK Inteligente", "Evita desconexiones por inactividad", function(v)
+    State.AntiAfk = v
+    Notify("Anti-AFK", v and "Activado." or "Desactivado.", 3, v and C.Green or C.Crimson, "SISTEMA")
+    return true
+end)
+
+LocalPlayer.Idled:Connect(function()
+    if State.AntiAfk then
+        pcall(function()
+            local vu = game:GetService("VirtualUser")
+            vu:CaptureController()
+            vu:ClickButton2(Vector2.new())
+        end)
+    end
+end)
+
+local origLight = {}
+MakeToggle(8, "Limpieza Visual (FPS)", "Reduce niebla y sombras locales", function(v)
+    State.CleanVisuals = v
+    pcall(function()
+        local lg = game:GetService("Lighting")
+        if v then
+            origLight = { FogEnd = lg.FogEnd, GlobalShadows = lg.GlobalShadows }
+            lg.FogEnd = 100000
+            lg.GlobalShadows = false
+            Notify("FPS Mejorado", "Sombras y niebla reducidas.", 3, C.Green, "FPS")
+        else
+            if origLight.FogEnd then lg.FogEnd = origLight.FogEnd end
+            if origLight.GlobalShadows ~= nil then lg.GlobalShadows = origLight.GlobalShadows end
+            Notify("Visual Normal", "Iluminación restaurada.", 3, C.Blue, "FPS")
+        end
+    end)
+    return true
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.4)
+    if State.SafeEnabled then
+        ApplyStats()
+    end
+end)
+
+-- ==========================================
+-- 9. PESTAÑA CONSEJOS
+-- ==========================================
+for i, txt in ipairs(TipsList) do
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -4, 0, 48)
+    row.BackgroundColor3 = C.Card
+    row.LayoutOrder = i
+    row.Parent = TipsTab
+    Decorate(row, 8, C.Border, 1)
+
+    local num = Instance.new("TextLabel")
+    num.Size = UDim2.new(0, 30, 0, 24)
+    num.Position = UDim2.new(0, 8, 0.5, -12)
+    num.BackgroundColor3 = C.CardDark
+    num.Font = Enum.Font.GothamBold
+    num.Text = "#" .. tostring(i)
+    num.TextColor3 = C.Blue
+    num.TextSize = 11
+    num.Parent = row
+    Decorate(num, 6, C.Border, 1)
+
+    local desc = Instance.new("TextLabel")
+    desc.Size = UDim2.new(1, -50, 1, -8)
+    desc.Position = UDim2.new(0, 44, 0, 4)
+    desc.BackgroundTransparency = 1
+    desc.Font = Enum.Font.Gotham
+    desc.Text = txt
+    desc.TextColor3 = C.Muted
+    desc.TextSize = 11
+    desc.TextWrapped = true
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.Parent = row
+end
+
+-- ==========================================
+-- 10. MINIMIZAR Y BOTÓN FLOTANTE
+-- ==========================================
+local isMin = false
+local function ToggleMin()
+    PlaySfx(SFX.Click, 0.35, 1)
+    isMin = not isMin
+    SideBar.Visible = not isMin
+    Content.Visible = not isMin
+    TopPatch.Visible = not isMin
+    TopAccent.Visible = not isMin
+    StatusPill.Visible = not isMin
+
+    local goal = isMin and UDim2.new(0, Main.AbsoluteSize.X, 0, 44) or UDim2.new(0, 536, 0, 358)
+    TweenService:Create(Main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = goal
+    }):Play()
+
+    MinBtn.Text = isMin and "+" or "-"
+    MinQuickBtn.Text = isMin and "Restaurar" or "Minimizar"
+end
+
+MinBtn.MouseButton1Click:Connect(ToggleMin)
+MinQuickBtn.MouseButton1Click:Connect(ToggleMin)
+
+HideBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.35, 0.95)
+    Main.Visible = false
+    FloatBtn.Visible = true
+    Notify("Hub Oculto", "Toca el botón KNY para volver a abrirlo.", 3, C.Gold, "HUB")
+end)
+
+FloatBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.35, 1.15)
+    FloatBtn.Visible = false
+    Main.Visible = true
+end)
+
+-- ==========================================
+-- 11. VALIDACIÓN DE KEY (LIMPIA Y SIN PISTAS)
+-- ==========================================
+local function NormalizeKey(raw)
+    if type(raw) ~= "string" then return "" end
+    -- Elimina espacios, saltos de línea, tabulaciones y convierte a mayúsculas
+    local cleaned = raw:gsub("[%s%c]", ""):upper()
+    return cleaned
+end
+
+local function CheckKey(raw)
+    local clean = NormalizeKey(raw)
+    if clean == "" then return false, nil, "" end
+    local role = KeyConfig.ValidKeys[clean]
+    if role then
+        return true, role, clean
+    end
+    return false, nil, clean
+end
+
+local function SaveKey(k)
+    pcall(function()
+        if typeof(writefile) == "function" then
+            writefile(KeyConfig.SaveFileName, k)
+        end
+    end)
+end
+
+local function ReadKey()
+    local out = nil
+    pcall(function()
+        if typeof(isfile) == "function" and typeof(readfile) == "function" and isfile(KeyConfig.SaveFileName) then
+            out = readfile(KeyConfig.SaveFileName)
+        end
+    end)
+    return out
+end
+
+local function DelKey()
+    pcall(function()
+        if typeof(isfile) == "function" and typeof(delfile) == "function" and isfile(KeyConfig.SaveFileName) then
+            delfile(KeyConfig.SaveFileName)
+        end
+    end)
+end
+
+local checkingKey = false
+
+local function OpenMainHub(validKeyStr, roleName)
+    SaveKey(validKeyStr)
+    KeyFeedback.Text = "Acceso verificado. Abriendo KNY_HUB..."
+    KeyFeedback.TextColor3 = C.Green
+    PlaySfx(SFX.Success, 0.45, 1)
+
+    task.wait(0.4)
+
+    for _, d in ipairs(KeyScreen:GetDescendants()) do
+        if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+            TweenService:Create(d, TweenInfo.new(0.3), { TextTransparency = 1 }):Play()
+        elseif d:IsA("Frame") then
+            TweenService:Create(d, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+        end
+    end
+
+    local fade = TweenService:Create(KeyScreen, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    })
+    fade:Play()
+    fade.Completed:Wait()
+    KeyScreen:Destroy()
+
+    Main.Visible = true
+    Notify("Acceso Concedido", "Clave verificada (" .. tostring(roleName) .. "). Bienvenido.", 4, C.Green, "KEY OK")
+end
+
+PasteBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 1.1)
+    local clip = nil
+    pcall(function()
+        if typeof(getclipboard) == "function" then
+            clip = getclipboard()
+        end
+    end)
+    if clip and tostring(clip) ~= "" then
+        KeyInput.Text = NormalizeKey(tostring(clip))
+        KeyFeedback.Text = "Clave pegada desde el portapapeles."
+        KeyFeedback.TextColor3 = C.Blue
+    else
+        KeyFeedback.Text = "Pega tu clave manualmente en el recuadro."
+        KeyFeedback.TextColor3 = C.Gold
+    end
+end)
+
+CopyLinkBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 1.05)
+    local copied = false
+    pcall(function()
+        if typeof(setclipboard) == "function" then
+            setclipboard(KeyConfig.KeyLinkText)
+            copied = true
+        elseif typeof(toclipboard) == "function" then
+            toclipboard(KeyConfig.KeyLinkText)
+            copied = true
+        end
+    end)
+    if copied then
+        KeyFeedback.Text = "Enlace copiado al portapapeles."
+        KeyFeedback.TextColor3 = C.Green
+        Notify("Enlace Copiado", "Enlace de KNY_HUB copiado.", 3, C.Blue, "ENLACE")
+    else
+        KeyFeedback.Text = KeyConfig.KeyLinkText
+        KeyFeedback.TextColor3 = C.Gold
+    end
+end)
+
+WipeSavedBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 0.95)
+    DelKey()
+    KeyInput.Text = ""
+    KeyFeedback.Text = "Clave guardada eliminada."
+    KeyFeedback.TextColor3 = C.Gold
+    Notify("Key Borrada", "Se eliminó la clave guardada.", 3, C.Gold, "KEY")
+end)
+
+KeyExitBtn.MouseButton1Click:Connect(function()
+    PlaySfx(SFX.Click, 0.3, 0.9)
+    Gui:Destroy()
+end)
+
+UnlockBtn.MouseButton1Click:Connect(function()
+    if checkingKey then return end
+    checkingKey = true
+    PlaySfx(SFX.Click, 0.35, 1.1)
+
+    UnlockBtn.Text = "VERIFICANDO..."
+    UnlockBtn.BackgroundColor3 = C.Card
+    KeyFeedback.Text = "Comprobando clave..."
+    KeyFeedback.TextColor3 = C.Blue
+
+    task.wait(0.5)
+
+    local ok, role, cleanKey = CheckKey(KeyInput.Text)
+    if ok then
+        OpenMainHub(cleanKey, role)
+    else
+        PlaySfx(SFX.Error, 0.4, 0.95)
+        UnlockBtn.Text = "DESBLOQUEAR KNY_HUB"
+        UnlockBtn.BackgroundColor3 = C.Blue
+        KeyFeedback.Text = "Clave incorrecta. Verifica tu key e intenta de nuevo."
+        KeyFeedback.TextColor3 = C.Crimson
+        Notify("Acceso Denegado", "La clave ingresada no es válida.", 4, C.Crimson, "ERROR")
+    end
+
+    checkingKey = false
+end)
+
+-- ==========================================
+-- 12. ARRANQUE: CARGA 15S -> KEY SCREEN
+-- ==========================================
+task.spawn(function()
+    TweenService:Create(LineTop, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+        Position = UDim2.new(0.1, 0, 0.20, 0),
+        Size = UDim2.new(0.8, 0, 0, 2)
+    }):Play()
+
+    TweenService:Create(LineBot, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+        Position = UDim2.new(0.1, 0, 0.80, 0),
+        Size = UDim2.new(0.8, 0, 0, 2)
+    }):Play()
+
+    TweenService:Create(SplashTitle, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    }):Play()
+    task.wait(0.25)
+    TweenService:Create(SplashSub, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        TextTransparency = 0
+    }):Play()
+
+    local stages = {
+        { target = 0.20, dur = 3.0, msg = "Verificando perfil de " .. LocalPlayer.Name .. "..." },
+        { target = 0.45, dur = 3.0, msg = "Analizando experiencia: " .. GameName .. "..." },
+        { target = 0.70, dur = 3.0, msg = "Cargando módulos visuales y notificaciones..." },
+        { target = 0.90, dur = 3.0, msg = "Optimizando interfaz para " .. DeviceLabel .. "..." },
+        { target = 1.00, dur = 2.0, msg = "KNY_HUB listo para iniciar." }
+    }
+
+    local totalTime = 15
+    local startT = tick()
+
+    for _, st in ipairs(stages) do
+        SplashStep.Text = st.msg
+        local stepT = tick()
+        local fromPct = BarFill.Size.X.Scale
+
+        while (tick() - stepT) < st.dur do
+            local alpha = math.clamp((tick() - stepT) / st.dur, 0, 1)
+            local nowPct = fromPct + (st.target - fromPct) * alpha
+            BarFill.Size = UDim2.new(nowPct, 0, 1, 0)
+
+            local left = math.max(0, math.ceil(totalTime - (tick() - startT)))
+            SplashPct.Text = string.format("%d%%  •  %ds restantes", math.floor(nowPct * 100), left)
+            task.wait(0.05)
+        end
+
+        BarFill.Size = UDim2.new(st.target, 0, 1, 0)
+    end
+
+    SplashPct.Text = "100%  •  Completado"
+    PlaySfx(SFX.Success, 0.45, 1)
+    task.wait(0.35)
+
+    for _, d in ipairs(Splash:GetDescendants()) do
+        if d:IsA("TextLabel") then
+            TweenService:Create(d, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+        elseif d:IsA("Frame") then
+            TweenService:Create(d, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
+        end
+    end
+
+    local fadeSplash = TweenService:Create(Splash, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1
+    })
+    fadeSplash:Play()
+    fadeSplash.Completed:Wait()
+    Splash:Destroy()
+
+    local savedKey = ReadKey()
+    local savedOk, savedRole, cleanSaved = CheckKey(savedKey)
+    if savedOk then
+        OpenMainHub(cleanSaved, savedRole)
+    else
+        KeyScreen.Visible = true
+        TweenService:Create(KeyPanel, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+            Position = UDim2.fromScale(0.5, 0.5)
+        }):Play()
+        Notify("Acceso Requerido", "Ingresa tu key de KNY_HUB para entrar.", 4, C.Blue, "KEY")
+    end
+end)
